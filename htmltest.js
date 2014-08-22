@@ -37,21 +37,31 @@ if (window.top === window) {
   };
 }
 
-window.asyncSeries = function(series, callback) {
+window.asyncSeries = function(series, callback, forwardExceptions) {
   series = series.slice();
   var next = function(err) {
     if (err) {
-      callback(err);
+      if (callback) {
+        callback(err);
+      }
     } else {
-      var f = series.unshift();
+      var f = series.shift();
       if (f) {
-        try {
-          f();
-        } catch(e) {
-          callback(e);
+        if (!forwardExceptions) {
+          f(next);
+        } else {
+          try {
+            f(next);
+          } catch(e) {
+            if (callback) {
+              callback(e);
+            }
+          }
         }
       } else {
-        callback();
+        if (callback) {
+          callback();
+        }
       }
     }
   };
