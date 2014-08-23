@@ -2,7 +2,6 @@
 
   var files;
   var stream;
-  var runId;
   var browserId;
 
   var thisFile = 'ci-support.js';
@@ -69,7 +68,6 @@
 
   function runTests(setup) {
     stream = getQueryVariable('stream');
-    runId = getQueryVariable('run');
     browserId = getQueryVariable('browser');
     files = [];
 
@@ -119,53 +117,61 @@
       socket = io('http://localhost:' + stream);
     }
     var emitEvent = function(event, data) {
-      if (socket) {
-        console.log(event);
-        socket.emit('mocha event', {event: event, browser: browserId, run: runId, data: data});
-      }
+      var payload = {browserId: browserId, event: event, data: data};
+      console.log('client-event:', payload);
+      if (!socket) return;
+      socket.emit('client-event', payload);
     };
 
-    var failedTests = [];
-    runner.on('end', function() {
-      window.mochaResults = runner.stats;
-      window.mochaResults.reports = failedTests;
-      emitEvent('end', window.mochaResults);
-    });
-
-    runner.on('fail', function(test, err) {
-      var flattenTitles = function(test) {
-        var titles = [];
-        while (test.parent.title) {
-          titles.push(test.parent.title);
-          test = test.parent;
-        }
-        return titles.reverse();
-      };
-      var failure = {
-        name: test.title,
-        result: false,
-        message: err.message,
-        stack: err.stack,
-        titles: flattenTitles(test) 
-      };
-      failedTests.push(failure);
-      emitEvent('fail', failure);
-    });
-
-    // Other events
-    if (socket) {
-      ['start', 'suite', 'suite end', 'test', 'test end', 'hook', 'hook end', 'pass'].forEach(function(event) {
-        runner.on(event, function(data) {
-          var cache = {};
-          emitEvent(event, JSON.stringify(data, function(key, value) {
-            if (!cache[value]) {
-              cache[value] = true;
-              return value;
-            }
-          }));
-        });
-      });
+    var getTitles = function(runnable) {
+      var titles = [];
+      while (runnable && runnable.title) {
+        titles.unshift(runnable.title);
+        runnable = runnable.parent;
+      }
+      return titles;
     }
+
+    var getState = function(runnable) {
+      if (runnable.state === 'passed') {
+        return 'passing';
+      } else if (runnable.state = 'failed') {
+        return 'failing';
+      } else if (runnable.pending) {
+        return 'pending';
+      } else {
+        return 'unknown';
+      }
+    }
+
+    var cleanError = function(error) {
+      if (!error) return undefined;
+      return {message: error.message, stack: error.stack};
+    }
+
+    // the runner's start event has already fired.
+    emitEvent('browser-start', {total: runner.total});
+
+    // We only emit a subset of events that we care about, and follow a more
+    // general event format that is hopefully applicable to test runners beyond
+    // mocha.
+    //
+    // For all possible mocha events, see:
+    // https://github.com/visionmedia/mocha/blob/master/lib/runner.js#L36
+    runner.on('test', function(test) {
+      emitEvent('test-start', {test: getTitles(test)});
+    });
+    runner.on('test end', function(test) {
+      emitEvent('test-end', {
+        state:    getState(test),
+        test:     getTitles(test),
+        duration: test.duration,
+        error:    cleanError(test.err),
+      });
+    });
+    runner.on('end', function() {
+      emitEvent('browser-end', {});
+    });
   }
 
   window.runTests = runTests;
