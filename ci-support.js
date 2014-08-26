@@ -173,7 +173,7 @@
       });
     });
     runner.on('end', function() {
-      emitEvent('browser-end', {});
+      emitEvent('browser-end');
     });
   }
 
