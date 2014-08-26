@@ -1,9 +1,9 @@
 (function() {
 
   var files;
-  var stream;
   var browserId;
 
+  var socketEndpoint = window.location.protocol + '//' + window.location.host;
   var thisFile = 'ci-support.js';
   var thisScript = document.querySelector('script[src$="' + thisFile + '"]');
   var base = thisScript.src.substring(0, thisScript.src.lastIndexOf('/')+1);
@@ -17,11 +17,11 @@
         var div = document.createElement('div');
         div.id = 'mocha';
         document.body.appendChild(div);
-        mocha.setup({ui: 'tdd', slow: 1000, timeout: 5000, htmlbase: ''});      
+        mocha.setup({ui: 'tdd', slow: 1000, timeout: 5000, htmlbase: ''});
       }
     ],
     'chai': [
-      base + 'chai/chai.js'      
+      base + 'chai/chai.js'
     ]
   };
 
@@ -59,20 +59,19 @@
     var vars = query.split("&");
     for (var i=0;i<vars.length;i++) {
       var pair = vars[i].split("=");
-      if (pair[0] == variable) { 
-        return pair[1]; 
+      if (pair[0] == variable) {
+        return pair[1];
       }
     }
     return(false);
   }
 
   function runTests(setup) {
-    stream = getQueryVariable('stream');
     browserId = getQueryVariable('browser');
     files = [];
 
-    if (stream) {
-      files.push('http://localhost:' + stream + '/socket.io/socket.io.js');
+    if (browserId) {
+      files.push(socketEndpoint + '/socket.io/socket.io.js');
     }
 
     if (typeof setup == 'string') {
@@ -106,16 +105,17 @@
       }));
     }
     files = files.concat(setup.tests);
-    nextFile();    
+    nextFile();
   }
 
   function startMocha() {
     var runner = mocha.run();
 
     var socket;
-    if (stream) {
-      socket = io('http://localhost:' + stream);
+    if (browserId) {
+      socket = io(socketEndpoint);
     }
+
     var emitEvent = function(event, data) {
       var payload = {browserId: browserId, event: event, data: data};
       console.log('client-event:', payload);
@@ -150,7 +150,10 @@
     }
 
     // the runner's start event has already fired.
-    emitEvent('browser-start', {total: runner.total});
+    emitEvent('browser-start', {
+      total: runner.total,
+      url:   window.location.toString(),
+    });
 
     // We only emit a subset of events that we care about, and follow a more
     // general event format that is hopefully applicable to test runners beyond
