@@ -17,7 +17,7 @@
         var div = document.createElement('div');
         div.id = 'mocha';
         document.body.appendChild(div);
-        mocha.setup({ui: 'tdd', slow: 1000, timeout: 5000, htmlbase: ''});
+        mocha.setup({ui: 'tdd', slow: 1000, timeout: 10000, htmlbase: ''});
       }
     ],
     'chai': [
