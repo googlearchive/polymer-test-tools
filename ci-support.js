@@ -130,24 +130,24 @@
         runnable = runnable.parent;
       }
       return titles;
-    }
+    };
 
     var getState = function(runnable) {
       if (runnable.state === 'passed') {
         return 'passing';
-      } else if (runnable.state = 'failed') {
+      } else if (runnable.state == 'failed') {
         return 'failing';
       } else if (runnable.pending) {
         return 'pending';
       } else {
         return 'unknown';
       }
-    }
+    };
 
     var cleanError = function(error) {
       if (!error) return undefined;
       return {message: error.message, stack: error.stack};
-    }
+    };
 
     // the runner's start event has already fired.
     emitEvent('browser-start', {

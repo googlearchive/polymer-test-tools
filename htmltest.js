@@ -67,3 +67,27 @@ window.asyncSeries = function(series, callback, forwardExceptions) {
   };
   next();
 };
+
+window.waitFor = function(fn, next, intervalOrMutationEl, timeout, timeoutTime) {
+  timeoutTime = timeoutTime || Date.now() + (timeout || 1000);
+  intervalOrMutationEl = intervalOrMutationEl || 32;
+  try {
+    fn(); 
+  } catch (e) { 
+    if (Date.now() > timeoutTime) {
+      throw e;
+    } else {
+      if (isNaN(intervalOrMutationEl)) {
+        intervalOrMutationEl.onMutation(intervalOrMutationEl, function() {
+          waitFor(fn, next, intervalOrMutationEl, timeout, timeoutTime);
+        });
+      } else {
+        setTimeout(function() {
+          waitFor(fn, next, intervalOrMutationEl, timeout, timeoutTime);
+        }, intervalOrMutationEl);
+      }
+      return;
+    }
+  }
+  next();
+};
