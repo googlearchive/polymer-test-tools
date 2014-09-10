@@ -4,6 +4,7 @@
   var stream;
   var runId;
   var browserId;
+  var socket;
 
   var thisFile = 'ci-support.js';
   var thisScript = document.querySelector('script[src$="' + thisFile + '"]');
@@ -18,7 +19,7 @@
         var div = document.createElement('div');
         div.id = 'mocha';
         document.body.appendChild(div);
-        mocha.setup({ui: 'tdd', slow: 1000, timeout: 5000, htmlbase: ''});      
+        mocha.setup({ui: 'tdd', slow: 1000, timeout: 10000, htmlbase: ''});      
       }
     ],
     'chai': [
@@ -114,13 +115,11 @@
   function startMocha() {
     var runner = mocha.run();
 
-    var socket;
     if (stream) {
       socket = io('http://localhost:' + stream);
     }
     var emitEvent = function(event, data) {
       if (socket) {
-        console.log(event);
         socket.emit('mocha event', {event: event, browser: browserId, run: runId, data: data});
       }
     };
@@ -165,7 +164,30 @@
           }));
         });
       });
+
+      socket.on('webdriver result', function(result) {
+        var cmd = wdQueue.shift();
+        cmd.cb(result.error, result.results);
+        if (wdQueue.length) {
+          sendWdCommand();
+        }
+      });
     }
+  }
+
+  var wdQueue = [];
+  window.webdriverCommand = function(args, cb) {
+    if (socket) {
+      wdQueue.push({args: args, cb: cb});
+      if (wdQueue.length == 1) {
+        sendWdCommand();
+      }
+    } else {
+      cb('Not connected to ci-runner, cannot run Webdriver commands.');
+    }
+  };
+  function sendWdCommand() {
+    socket.emit('webdriver command', {browser: browserId, run: runId, args: wdQueue[0].args});
   }
 
   window.runTests = runTests;

@@ -29,6 +29,10 @@
   var listener = function(event) {
     if (event.data === 'ok') {
       next();
+    } else if (event.data && event.data.webdriverCommand) {
+      webdriverCommand(event.data.webdriverCommand, function(err, results) {
+        iframe.contentWindow.postMessage({error: err, results: results}, '*');
+      });
     } else if (event.data && event.data.error) {
       // errors cannot be cloned via postMessage according to spec, so we re-errorify them
       throw new Error(event.data.error);
@@ -38,7 +42,7 @@
   function htmlSetup() {
     window.addEventListener("message", listener);
     iframe = document.createElement('iframe');
-    iframe.style.cssText = 'position: absolute; left: -9000em; width:768px; height: 1024px';
+    iframe.style.cssText = 'position: absolute; left: 0; top: 0; width: 768px; height: 768px; opacity: 0.0001;'; // left: -9000em; width:768px; height: 1024px';
     document.body.appendChild(iframe);
   }
 
@@ -53,9 +57,9 @@
       var url = base + src;
       var delimiter = url.indexOf('?') < 0 ? '?' : '&';
       var docSearch = location.search.slice(1);
-      iframe.src = url + delimiter + Math.random() + '&' + docSearch;
+      iframe.src = url + delimiter + Math.floor(0) + '&' + docSearch;
     });
-  };
+  }
 
   function htmlSuite(inName, inFn) {
     suite(inName, function() {
@@ -63,7 +67,7 @@
       teardown(htmlTeardown);
       inFn();
     });
-  };
+  }
 
   window.htmlTest = htmlTest;
   window.htmlSuite = htmlSuite;
